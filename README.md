@@ -13,18 +13,30 @@ docker logs zeabur-monitor | grep -E "密码|账号|已加载"
 docker exec -it zeabur-monitor sh
 env | grep -E "ADMIN_PASSWORD|ACCOUNTS|PORT"
 docker-compose config | grep -A 10 "environment:"
-# Zeabur Monitor — 发布版说明
+# Zeabur Monitor — Docker 与本地部署指南
 
-轻量、生产就绪的 Zeabur 多账号监控面板，适合将多个 Zeabur 账号集中监控余额、项目用量和服务状态。
+本文件仅包含生产/本地部署所需的 Docker 与本地启动步骤，适合把本仓库快速部署到服务器或在本地测试。
 
-核心要点
-- 运行环境：Node.js 18+
-- 部署方式：Docker（推荐）或直接 Node 运行
-- 镜像仓库：GitHub Container Registry (`ghcr.io/salist01/zeabur-monitor`)
+前提
+- 已安装 Docker（和 docker-compose 可选）
+- Node.js 18+（仅在本地直接运行时需要）
 
-快速开始（生产）
+快速运行（使用镜像）
 
-1) 使用镜像运行（生产示例）：
+推荐在生产主机上以非交互方式运行容器并挂载持久化目录：
+
+PowerShell（示例）：
+```powershell
+# 在 Windows PowerShell 上（示例目录: C:\opt\zeabur-monitor\data）
+docker run -d --name zeabur-monitor `
+  -p 3000:3000 `
+  -e NODE_ENV=production `
+  -e ADMIN_PASSWORD="<your_admin_password>" `
+  -v C:\opt\zeabur-monitor\data:/app/config `
+  ghcr.io/salist01/zeabur-monitor:latest
+```
+
+Linux / macOS（示例）：
 ```bash
 docker run -d --name zeabur-monitor \
   -p 3000:3000 \
@@ -34,60 +46,103 @@ docker run -d --name zeabur-monitor \
   ghcr.io/salist01/zeabur-monitor:latest
 ```
 
-2) 推荐使用 `docker-compose`（示例已包含在仓库）：
-```bash
-# 在项目根：
+使用 `docker ps` 检查容器是否启动，使用 `docker logs zeabur-monitor -f` 查看启动日志。
+
+Docker Compose（推荐用于持久化管理）
+
+在项目根（仓库）放置或使用仓库内的 `docker-compose.yml`，示例：
+
+```yaml
+version: '3.8'
+services:
+  zeabur-monitor:
+    image: ghcr.io/salist01/zeabur-monitor:latest
+    container_name: zeabur-monitor
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # - ACCOUNTS=account1:token1,account2:token2   # 可选，不推荐明文存放
+      # - ADMIN_PASSWORD=${ADMIN_PASSWORD}            # 推荐通过 env 或 secrets 提供
+    volumes:
+      - ./data:/app/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+```
+
+启动/管理：
+```powershell
+# 启动
 docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止并移除容器
+docker-compose down
 ```
 
-配置说明（生产关注点）
-- `ADMIN_PASSWORD`：管理员密码（优先于文件），在生产环境强烈建议使用平台 Secrets 注入。
-- 持久化目录：建议挂载宿主目录 `./data` 到容器 `/app/config`（容器内文件：`/app/config/accounts.json`、`/app/config/password.json`）。
-- `ACCOUNTS`：可选的预配置账号字符串，格式为 `name1:token1,name2:token2`（不建议将真实 token 放入版本控制或公开 Compose 文件）。
+持久化目录与初始文件（避免 EISDIR 问题）
 
-生产部署要点
-- 请使用 TLS/HTTPS（反向代理如 Nginx/Traefik）与访问控制。
-- 使用 Docker secrets / GitHub Secrets / 平台密钥管理存储敏感信息。
-- 为镜像打标签并使用语义化版本：`v1.0.0`。推送 `v*` 标签将触发 CI 发布镜像（详见 GitHub Actions）。
+建议在宿主机上创建一个 `data` 目录并预置必要文件。容器会在 `/app/config` 下读取/写入这些文件。
 
-发布流程（简要）
-1. 更新代码并提交到 `main`。
-2. 在本地或 CI 中运行测试并构建镜像。
-3. 打 tag 并推送：
+PowerShell 创建示例：
+```powershell
+mkdir .\data
+Set-Content .\data\accounts.json '[]' -NoNewline
+Set-Content .\data\password.json '{"password":""}' -NoNewline
+```
+
+Linux / macOS：
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-4. GitHub Actions 将构建并推送镜像到 GHCR（工作流已配置）。
-
-故障排查（快速）
-- 资源 404（如 `/logo.png`）：确保 `public/logo.png` 在仓库中并且 `express.static` 正确指向 `public` 目录。
-- 错误 `EISDIR`：通常因宿主挂载文件路径不存在导致 Docker 在宿主创建目录，请在宿主先创建 `./data/accounts.json` 与 `./data/password.json` 或使用命名卷挂载。
-- 构建失败 `npm ci`：确保 `package-lock.json` 在构建上下文中，并且 `.dockerignore` 未排除此文件。
-
-CI / 镜像发布（简述）
-- 工作流会在推送 `main` 或 `v*` tag 时构建多平台镜像并推送到 `ghcr.io/salist01/zeabur-monitor`。
-- 若要使用 Docker Hub，请在 Actions 中设置相应 Secrets（`DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`），并调整工作流。
-
-安全性建议
-- 不要在仓库或公开配置中放置真实 API tokens。
-- 使用只读或最小权限的 tokens。定期轮换 token。
-- 容器运行在受限网络、并在反向代理/身份验证层保护前端接口。
-
-项目结构（简要）
-```
-zeabur-monitor/
-├── public/             # 前端静态资源
-├── server.js           # Express 后端
-├── Dockerfile          # 生产镜像构建
-├── docker-compose.yml  # 示例部署（挂载 ./data:/app/config）
-└── .github/workflows/  # CI 配置（镜像构建与发布）
+mkdir -p ./data
+echo '[]' > ./data/accounts.json
+echo '{"password":""}' > ./data/password.json
 ```
 
-联系与贡献
-- 欢迎提交 Issue 或 PR；生产问题请附带日志与复现步骤。
+重要：如果挂载单个宿主文件到容器（例如 `./data/password.json:/app/config/password.json`），请确保宿主文件存在，否则 Docker 可能在宿主创建目录导致容器内出现 `EISDIR` 错误。推荐挂载目录（`./data:/app/config`）。
 
-许可证
-- MIT
+本地直接运行（开发或调试）
 
-— Zeabur Monitor 团队
+仅在本地调试或开发时使用（生产请使用 Docker）：
+
+```powershell
+# 安装依赖
+npm ci
+
+# 启动（开发模式）
+npm start
+
+# 访问 http://localhost:3000
+```
+
+主要环境变量（简要）
+- `PORT`：应用监听端口，默认 `3000`。
+- `ADMIN_PASSWORD`：管理员密码（优先于 `password.json`）。生产中请通过 Secrets 提供。
+- `ACCOUNTS`：预配置账号字符串，格式 `name1:token1,name2:token2`（建议仅用于临时或不可公开的环境）。
+- `CONFIG_DIR`：应用读取配置的目录（容器内默认 `/app/config`）。
+
+构建与发布（简要）
+- 仓库已配置 GitHub Actions 自动构建并将镜像推送到 `ghcr.io/salist01/zeabur-monitor`。推送 `v*` tag 时会产生带版本的镜像。
+
+常见问题（快速排查）
+- 容器启动但无法访问：确认防火墙、端口映射和容器日志（`docker logs`）。
+- 启动中出现 `EISDIR`：通常是宿主挂载导致目录/文件冲突，请按“持久化目录与初始文件”步骤预建文件或改用目录挂载。
+- 构建失败 `npm ci`：确保 `package-lock.json` 在构建上下文中，且 `.dockerignore` 未把它排除。
+
+安全提醒
+- 请勿在仓库或公开 Compose 文件中存放真实 API Token 或管理员密码。使用平台 Secret/环境变量或 Docker secrets 管理敏感信息。
+
+如果你想，我可以：
+- 把 `docker-compose.yml` 示例转换为使用命名卷和 Docker secrets；
+- 添加一个自动化 `entrypoint` 用于容器首次启动时初始化 `./data` 文件（可选）。
+
+---
+
+（仅包含 Docker 与本地部署教程。如需把 README 恢复成完整文档或加入更多运维细节，请告知。）
