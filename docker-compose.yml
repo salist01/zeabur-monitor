@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  zeabur-monitor:
+    image: ghcr.io/salist01/zeabur-monitor:latest
+    container_name: zeabur-monitor
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # 设置管理员密码（可选，如果未设置则在首次访问时提示设置）
+      ADMIN_PASSWORD: "change_me_to_your_secure_password"
+      # 预配置账号列表（可选格式，多个账号用逗号分隔）
+      # 注意：不推荐在此放入敏感的 API Token，建议在容器运行后通过 UI 添加账号
+      # 或通过 Docker secrets/ConfigMap 注入（用于生产环境）
+      # ACCOUNTS: "account1:sk-xxxxxxxxxxxxxxxx,account2:sk-yyyyyyyyyyyyyyy"
+    volumes:
+      # 持久化存储目录，保留账号信息和密码
+      - zeabur-monitor-data:/app
+    restart: unless-stopped
+    # 健康检查（可选）
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  zeabur-monitor-data:
+    driver: local
