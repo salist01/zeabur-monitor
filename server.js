@@ -36,6 +36,13 @@ const PASSWORD_FILE = path.join(__dirname, 'password.json');
 function loadServerAccounts() {
   try {
     if (fs.existsSync(ACCOUNTS_FILE)) {
+      // 检查是否是文件而非目录
+      const stats = fs.statSync(ACCOUNTS_FILE);
+      if (!stats.isFile()) {
+        console.error('❌ accounts.json 是目录而非文件，正在删除...');
+        fs.rmSync(ACCOUNTS_FILE, { recursive: true });
+        return [];
+      }
       const data = fs.readFileSync(ACCOUNTS_FILE, 'utf8');
       return JSON.parse(data);
     }
@@ -48,6 +55,14 @@ function loadServerAccounts() {
 // 保存账号到服务器
 function saveServerAccounts(accounts) {
   try {
+    // 如果 ACCOUNTS_FILE 是目录，先删除它
+    if (fs.existsSync(ACCOUNTS_FILE)) {
+      const stats = fs.statSync(ACCOUNTS_FILE);
+      if (!stats.isFile()) {
+        console.warn('⚠️ 发现 accounts.json 是目录，正在删除...');
+        fs.rmSync(ACCOUNTS_FILE, { recursive: true });
+      }
+    }
     fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2), 'utf8');
     return true;
   } catch (e) {
@@ -66,6 +81,13 @@ function loadAdminPassword() {
   // 其次从文件读取
   try {
     if (fs.existsSync(PASSWORD_FILE)) {
+      // 检查是否是文件而非目录
+      const stats = fs.statSync(PASSWORD_FILE);
+      if (!stats.isFile()) {
+        console.error('❌ password.json 是目录而非文件，正在删除...');
+        fs.rmSync(PASSWORD_FILE, { recursive: true });
+        return null;
+      }
       const data = fs.readFileSync(PASSWORD_FILE, 'utf8');
       return JSON.parse(data).password;
     }
@@ -79,6 +101,10 @@ function loadAdminPassword() {
 function isPasswordSavedToFile() {
   try {
     if (fs.existsSync(PASSWORD_FILE)) {
+      const stats = fs.statSync(PASSWORD_FILE);
+      if (!stats.isFile()) {
+        return false;
+      }
       const data = fs.readFileSync(PASSWORD_FILE, 'utf8');
       const parsed = JSON.parse(data);
       return !!parsed.password;
@@ -92,6 +118,14 @@ function isPasswordSavedToFile() {
 // 保存管理员密码
 function saveAdminPassword(password) {
   try {
+    // 如果 PASSWORD_FILE 是目录，先删除它
+    if (fs.existsSync(PASSWORD_FILE)) {
+      const stats = fs.statSync(PASSWORD_FILE);
+      if (!stats.isFile()) {
+        console.warn('⚠️ 发现 password.json 是目录，正在删除...');
+        fs.rmSync(PASSWORD_FILE, { recursive: true });
+      }
+    }
     fs.writeFileSync(PASSWORD_FILE, JSON.stringify({ password }, null, 2), 'utf8');
     return true;
   } catch (e) {

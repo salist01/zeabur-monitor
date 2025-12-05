@@ -10,15 +10,11 @@ RUN npm ci --only=production
 # Copy app source
 COPY . .
 
-# Use non-root user for security (optional)
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-RUN chown -R appuser:appgroup /app
-USER appuser
-
 ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
 
-# Default command
+# Default command (runs as root for simplicity, or can be changed to non-root user)
+# For production deployments, consider using a non-root user and proper volume mounts
 CMD ["npm", "start"]
