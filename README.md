@@ -113,10 +113,183 @@ zeabur-monitor/
 ├── package.json        # 项目配置
 ├── .env.example        # 环境变量示例
 ├── .gitignore          # Git 忽略规则
+├── .dockerignore       # Docker 忽略规则
+├── Dockerfile          # Docker 镜像构建配置
 ├── zbpack.json         # Zeabur 配置
 ├── README.md           # 项目说明
 └── DEPLOY.md           # 部署指南
 ```
+
+## 🐳 Docker 部署
+
+### 使用 Docker 运行
+
+#### 快速启动（从预构建镜像）
+
+```bash
+# 使用 GitHub Container Registry 镜像运行
+docker run -d \
+  --name zeabur-monitor \
+  -p 3000:3000 \
+  ghcr.io/salist01/zeabur-monitor:latest
+```
+
+然后访问 `http://localhost:3000`
+
+#### 本地构建并运行
+
+```bash
+# 1. 构建镜像
+docker build -t zeabur-monitor:latest .
+
+# 2. 运行容器
+docker run -d \
+  --name zeabur-monitor \
+  -p 3000:3000 \
+  zeabur-monitor:latest
+
+# 3. 查看日志
+docker logs zeabur-monitor
+
+# 4. 停止容器
+docker stop zeabur-monitor
+```
+
+### Docker 环境变量
+
+运行 Docker 容器时可通过 `-e` 传递以下环境变量：
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+|---------|------|-------|------|
+| `PORT` | 应用监听端口 | `3000` | `-e PORT=8080` |
+| `NODE_ENV` | Node 环境 | `production` | `-e NODE_ENV=production` |
+| `ACCOUNTS` | 预配置账号列表 | 无 | `-e ACCOUNTS="alice:token1,bob:token2"` |
+| `ADMIN_PASSWORD` | 管理员密码（可选） | 无 | `-e ADMIN_PASSWORD="mypassword123"` |
+
+**ACCOUNTS 格式说明：**
+```
+"账号名1:API_Token1,账号名2:API_Token2"
+```
+
+完整示例：
+```bash
+docker run -d \
+  --name zeabur-monitor \
+  -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e PORT=3000 \
+  -e ACCOUNTS="my-account:sk-xxxxxxxxxxxxxxxx,backup-account:sk-yyyyyyyyyyyyyyy" \
+  -e ADMIN_PASSWORD="secure_password_123" \
+  ghcr.io/salist01/zeabur-monitor:latest
+```
+
+### 使用 Docker Compose（推荐）
+
+创建 `docker-compose.yml` 文件：
+
+```yaml
+version: '3.8'
+
+services:
+  zeabur-monitor:
+    image: ghcr.io/salist01/zeabur-monitor:latest
+    container_name: zeabur-monitor
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # 如需预配置账号，取消注释并填入（不推荐在此放入敏感信息）
+      # ACCOUNTS: "account1:token1,account2:token2"
+    volumes:
+      # 持久化账号和密码文件（可选）
+      - ./data/accounts.json:/app/accounts.json
+      - ./data/password.json:/app/password.json
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+```
+
+启动服务：
+
+```bash
+# 启动
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止
+docker-compose down
+```
+
+### 持久化数据
+
+如需保留账号信息和密码，需要挂载数据卷：
+
+#### 方法 1：使用 Docker 卷（推荐）
+```bash
+docker volume create zeabur-monitor-data
+
+docker run -d \
+  --name zeabur-monitor \
+  -p 3000:3000 \
+  -v zeabur-monitor-data:/app \
+  ghcr.io/salist01/zeabur-monitor:latest
+```
+
+#### 方法 2：挂载宿主机目录
+```bash
+# 创建数据目录
+mkdir -p ./data
+
+# 预置密码文件（可选）
+echo '{"password":"your_password"}' > ./data/password.json
+
+# 运行容器
+docker run -d \
+  --name zeabur-monitor \
+  -p 3000:3000 \
+  -v $(pwd)/data:/app \
+  ghcr.io/salist01/zeabur-monitor:latest
+```
+
+### 支持的平台
+
+当前 GitHub Actions 工作流自动构建以下平台的镜像：
+- `linux/amd64` - 64 位 Intel/AMD 处理器
+- `linux/arm64` - ARM 64 位处理器（如树莓派 4、Apple Silicon Mac 用户）
+
+### GitHub Container Registry（GHCR）
+
+镜像自动发布到 GitHub Container Registry：
+- **最新版本**：`ghcr.io/salist01/zeabur-monitor:latest`
+- **版本标签**：`ghcr.io/salist01/zeabur-monitor:COMMIT_SHA`
+- **发布标签**（tag）：`ghcr.io/salist01/zeabur-monitor:v1.0.0`（当推送 v* tag 时）
+
+### 故障排查
+
+**问题：容器启动后立即退出**
+```bash
+# 查看日志
+docker logs zeabur-monitor
+
+# 常见原因：port 已被占用或依赖安装失败
+```
+
+**问题：无法访问应用**
+- 检查 port 映射：`docker port zeabur-monitor`
+- 检查防火墙规则
+- 在容器内测试：`docker exec zeabur-monitor curl http://localhost:3000`
+
+**问题：构建失败（npm ci 出错）**
+- 确保 `package-lock.json` 存在
+- 确保 `.dockerignore` 未排除 `package-lock.json`
+- 本地清理缓存后重试：`docker build --no-cache -t zeabur-monitor:latest .`
 
 ## 🔒 安全说明
 

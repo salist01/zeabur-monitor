@@ -56,8 +56,15 @@ function saveServerAccounts(accounts) {
   }
 }
 
-// 读取管理员密码
+// 读取管理员密码（优先环境变量，其次文件）
 function loadAdminPassword() {
+  // 优先从环境变量读取
+  if (process.env.ADMIN_PASSWORD) {
+    console.log('📝 使用环境变量中的管理员密码');
+    return process.env.ADMIN_PASSWORD;
+  }
+  
+  // 其次从文件读取
   try {
     if (fs.existsSync(PASSWORD_FILE)) {
       const data = fs.readFileSync(PASSWORD_FILE, 'utf8');
