@@ -28,6 +28,15 @@ function requireAuth(req, res, next) {
 
 app.use(express.static('public'));
 
+// 为确保浏览器请求 favicon 时能正确返回图标（兼容 /favicon.ico 请求）
+app.get('/favicon.ico', (req, res) => {
+  const faviconPath = path.join(__dirname, 'public', 'logo.png');
+  if (fs.existsSync(faviconPath)) {
+    return res.sendFile(faviconPath);
+  }
+  return res.sendStatus(204);
+});
+
 // 配置目录（可通过环境变量覆盖），优先使用挂载的配置目录
 // 推荐在 Docker 中挂载为 `/app/config`，或在本地使用 `./data` 挂载到该路径
 const CONFIG_DIR = process.env.CONFIG_DIR || path.join(__dirname, 'config');
