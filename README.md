@@ -291,6 +291,38 @@ docker logs zeabur-monitor
 - 确保 `.dockerignore` 未排除 `package-lock.json`
 - 本地清理缓存后重试：`docker build --no-cache -t zeabur-monitor:latest .`
 
+### 环境变量调试
+
+**验证环境变量是否生效**
+
+1. 进入容器查看启动日志：
+```bash
+docker logs zeabur-monitor | grep -E "密码|账号|已加载"
+```
+
+2. 检查环境变量是否被正确读取：
+```bash
+# 进入容器终端
+docker exec -it zeabur-monitor sh
+
+# 查看 Node 进程的环境变量
+env | grep -E "ADMIN_PASSWORD|ACCOUNTS|PORT"
+```
+
+3. 如果使用 docker-compose，检查配置：
+```bash
+docker-compose config | grep -A 10 "environment:"
+```
+
+**常见问题与解决方案**
+
+| 问题 | 原因 | 解决方案 |
+|------|------|--------|
+| 密码环境变量未生效 | 环境变量未被正确传递 | 检查 docker run/docker-compose 的 `-e` 或 `environment:` 配置 |
+| ACCOUNTS 账号未显示 | 解析错误或格式不正确 | 检查格式是否为 `name1:token1,name2:token2`，token 中不能包含逗号 |
+| 前端显示"密码已设置，无法重复设置" | 文件或环境变量中已存在密码 | 如果无法进入，尝试删除 `password.json` 文件或清空环境变量 |
+| Docker 构建时依赖缺失 | `package-lock.json` 被忽略 | 确保 `.dockerignore` 中没有 `package-lock.json` |
+
 ## 🔒 安全说明
 
 ### 密码保护
