@@ -60,7 +60,6 @@ function saveServerAccounts(accounts) {
 function loadAdminPassword() {
   // 优先从环境变量读取
   if (process.env.ADMIN_PASSWORD) {
-    console.log('📝 使用环境变量中的管理员密码');
     return process.env.ADMIN_PASSWORD;
   }
   
@@ -74,6 +73,20 @@ function loadAdminPassword() {
     console.error('❌ 读取密码文件失败:', e.message);
   }
   return null;
+}
+
+// 检查密码是否已在文件中设置（用于 /api/set-password 判断）
+function isPasswordSavedToFile() {
+  try {
+    if (fs.existsSync(PASSWORD_FILE)) {
+      const data = fs.readFileSync(PASSWORD_FILE, 'utf8');
+      const parsed = JSON.parse(data);
+      return !!parsed.password;
+    }
+  } catch (e) {
+    return false;
+  }
+  return false;
 }
 
 // 保存管理员密码
@@ -468,11 +481,17 @@ app.get('/api/check-password', (req, res) => {
 });
 
 // 设置管理员密码（首次）
+// 如果使用了 ADMIN_PASSWORD 环境变量，则跳过此步骤
 app.post('/api/set-password', (req, res) => {
   const { password } = req.body;
-  const savedPassword = loadAdminPassword();
   
-  if (savedPassword) {
+  // 如果已设置了环境变量密码，拒绝再次设置
+  if (process.env.ADMIN_PASSWORD) {
+    return res.status(400).json({ error: '密码已通过环境变量设置，无法修改' });
+  }
+  
+  // 检查文件中是否已设置密码
+  if (isPasswordSavedToFile()) {
     return res.status(400).json({ error: '密码已设置，无法重复设置' });
   }
   
@@ -681,6 +700,15 @@ app.post('/api/project/rename', requireAuth, async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✨ Zeabur Monitor 运行在 http://0.0.0.0:${PORT}`);
+  
+  // 检查密码配置
+  if (process.env.ADMIN_PASSWORD) {
+    console.log(`🔐 已通过环境变量 ADMIN_PASSWORD 设置管理员密码`);
+  } else if (isPasswordSavedToFile()) {
+    console.log(`🔐 管理员密码已保存到文件`);
+  } else {
+    console.log(`⚠️ 未设置管理员密码，首次访问时请设置`);
+  }
   
   const envAccounts = getEnvAccounts();
   const serverAccounts = loadServerAccounts();
