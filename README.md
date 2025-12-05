@@ -1,103 +1,46 @@
-# 🚀 Zeabur 多账号监控面板
+# Zeabur 多账号监控（简洁说明）
 
-一个美观、强大的 Zeabur 多账号监控工具，实时显示免费额度使用情况、项目费用和服务状态。
+轻量的 Zeabur 多账号仪表盘，用于查看余额、项目费用、服务状态与日志。
 
-![](https://img.shields.io/badge/Node.js-18+-green.svg)
-![](https://img.shields.io/badge/License-MIT-blue.svg)
-![](https://img.shields.io/badge/Zeabur-Ready-blueviolet.svg)
+快速概览
+- Node.js 18+、Express 后端，前端为单页应用（`public/index.html`）
+- 支持通过环境变量或宿主挂载文件导入账号（详见下文）
 
-## ✨ 功能特性
+快速启动（Docker 推荐）
 
-- 🎨 **现代化 UI** - 粉色主题 + 玻璃拟态效果 + 动漫背景
-- 💰 **实时余额监控** - 显示每月免费额度剩余（$X.XX / $5.00）
-- ***项目费用追踪** - 每个项目的实时费用统计
-- ✏️ **项目快速改名** - 点击铅笔图标即可重命名项目
-- 🌐 **域名显示** - 显示项目的所有域名，点击直接访问
-- 🐳 **服务状态监控** - 显示所有服务的运行状态和资源配置
--  ***多账号支持** - 同时管理多个 Zeabur 账号
--  ***自动刷新** - 每 30 秒自动更新数据
-- 🎚️ **透明度调节** - 可调节卡片透明度（0-100%）
-- 📱 **响应式设计** - 完美适配各种屏幕尺寸
-- ***密码保护** - 管理员密码验证，保护账号安全
-- 💾 **服务器存储** - 账号数据存储在服务器，多设备自动同步
-- ⏸️ **服务控制** - 暂停、启动、重启服务
-- 📋 **查看日志** - 实时查看服务运行日志
-
-## 📦 快速开始
-
-### 前置要求
-
-- Node.js 18+
-- Zeabur 账号和 API Token
-
-### 获取 Zeabur API Token
-
-1. 登录 [Zeabur 控制台](https://zeabur.com)
-2. 点击右上角头像 → **Settings**
-3. 找到 **Developer** 或 **API Keys** 选项
-4. 点击 **Create Token**
-5. 复制生成的 Token（格式：`sk-xxxxxxxxxxxxxxxx`）
-
-### 本地部署
-
-```bash
-# 1. 克隆项目
-git clone https://github.com/jiujiu532/zeabur-monitor.git
-cd zeabur-monitor
-
-# 2. 安装依赖
-npm install
-
-# 3. 启动服务
-npm start
-
-# 4. 访问应用
-# 打开浏览器访问：http://localhost:3000
+1) 使用预构建镜像：
+```powershell
+docker run -d -p 3000:3000 ghcr.io/salist01/zeabur-monitor:latest
 ```
 
-### Zeabur 部署（推荐）
+2) 使用 `docker-compose`（推荐持久化配置）：
+```powershell
+# 项目根目录运行
+docker-compose up -d
+```
 
-详细部署步骤请查看 [DEPLOY.md](./DEPLOY.md)
+配置说明（精简）
+- `ADMIN_PASSWORD`：管理员密码（可选，优先于文件）
+- `ACCOUNTS`：预配置账号，格式 `name1:token1,name2:token2`
+- `CONFIG_DIR`：配置目录（容器中建议挂载 `./data:/app/config`），默认使用仓库内 `config` 目录
 
-## 📖 使用说明
+数据持久化（推荐）
+- 在项目根创建 `./data`，并挂载到容器 `/app/config`：
+  - `./data/accounts.json`（数组）
+  - `./data/password.json`（{ "password": "..." }）
 
-### 首次使用
+示例（创建文件）：
+```powershell
+mkdir .\data
+Set-Content .\data\accounts.json '[]' -NoNewline
+Set-Content .\data\password.json '{ "password": "" }' -NoNewline
+```
 
-1. 访问应用后，首次使用需要设置管理员密码（至少 6 位）
-2. 设置完成后，使用密码登录
-3. 点击 **"⚙️ 管理账号"** 添加 Zeabur 账号
+常见问题（快速排查）
+- 报错 `EISDIR`: 请确认宿主挂载的是文件而不是不存在时被创建的目录；建议挂载 `./data:/app/config` 并提前创建 `./data` 下的文件。
+- 构建失败 `npm ci`: 确保 `package-lock.json` 在上下文中（不要在 `.dockerignore` 中排除它）。
 
-### 添加账号
-
-#### 单个添加
-1. 点击 **"⚙️ 管理账号"**
-2. 输入账号名称和 API Token
-3. 点击 **"➕ 添加到列表"**
-
-#### 批量添加
-支持以下格式（每行一个账号）：
-- `账号名称:API_Token`
-- `账号名称：API_Token`
-- `账号名称(API_Token)`
-- `账号名称（API_Token）`
-
-### 项目改名
-
-1. 找到项目卡片
-2. 点击项目名称右侧的 **✏️** 铅笔图标
-3. 输入新名称，按 `Enter` 保存或 `Esc` 取消
-
-### 服务控制
-
-- **暂停服务**：点击 **⏸️ 暂停** 按钮
-- **启动服务**：点击 **▶️ 启动** 按钮
-- **重启服务**：点击 **🔄 重启** 按钮
-- **查看日志**：点击 **📋 日志** 按钮
-
-## 🔧 技术栈
-
-- **后端**：Node.js + Express
-- **前端**：Vue.js 3 (CDN)
+如需完整文档、开发指南或希望我把 `docker-compose.yml` 改为命名卷方案，请告诉我。
 - **API**：Zeabur GraphQL API
 - **样式**：原生 CSS（玻璃拟态效果）
 
