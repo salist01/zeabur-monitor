@@ -145,9 +145,9 @@ services:
       # 如需预配置账号，取消注释并填入（不推荐在此放入敏感信息）
       # ACCOUNTS: "account1:token1,account2:token2"
     volumes:
-      # 持久化账号和密码文件（可选）
-      - ./data/accounts.json:/app/accounts.json
-      - ./data/password.json:/app/password.json
+      # 推荐：将宿主机 ./data 目录挂载到容器的 /app/config
+      # 容器内配置文件路径为 /app/config/accounts.json 与 /app/config/password.json
+      - ./data:/app/config
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
@@ -181,7 +181,7 @@ docker volume create zeabur-monitor-data
 docker run -d \
   --name zeabur-monitor \
   -p 3000:3000 \
-  -v zeabur-monitor-data:/app \
+  -v zeabur-monitor-data:/app/config \
   ghcr.io/salist01/zeabur-monitor:latest
 ```
 
@@ -197,7 +197,7 @@ echo '{"password":"your_password"}' > ./data/password.json
 docker run -d \
   --name zeabur-monitor \
   -p 3000:3000 \
-  -v $(pwd)/data:/app \
+  -v $(pwd)/data:/app/config \
   ghcr.io/salist01/zeabur-monitor:latest
 ```
 
