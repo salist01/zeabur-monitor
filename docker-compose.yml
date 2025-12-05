@@ -16,8 +16,9 @@ services:
       # 或通过 Docker secrets/ConfigMap 注入（用于生产环境）
       # ACCOUNTS: "account1:sk-xxxxxxxxxxxxxxxx,account2:sk-yyyyyyyyyyyyyyy"
     volumes:
-      # 持久化存储目录，保留账号信息和密码
-      - zeabur-monitor-data:/app
+      # 建议将宿主机 ./data 挂载到容器的 /app/config，用于持久化配置文件
+      # 这样容器内的配置文件路径为 /app/config/accounts.json 与 /app/config/password.json
+      - ./data:/app/config
     restart: unless-stopped
     # 健康检查（可选）
     healthcheck:
@@ -27,6 +28,7 @@ services:
       retries: 3
       start_period: 10s
 
-volumes:
-  zeabur-monitor-data:
-    driver: local
+# 如果你更希望使用 Docker 命名卷，请取消注释下面内容并替换上方 volumes 配置
+#volumes:
+#  zeabur-monitor-data:
+#    driver: local

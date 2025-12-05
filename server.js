@@ -28,9 +28,12 @@ function requireAuth(req, res, next) {
 
 app.use(express.static('public'));
 
+// 配置目录（可通过环境变量覆盖），优先使用挂载的配置目录
+// 推荐在 Docker 中挂载为 `/app/config`，或在本地使用 `./data` 挂载到该路径
+const CONFIG_DIR = process.env.CONFIG_DIR || path.join(__dirname, 'config');
 // 数据文件路径
-const ACCOUNTS_FILE = path.join(__dirname, 'accounts.json');
-const PASSWORD_FILE = path.join(__dirname, 'password.json');
+const ACCOUNTS_FILE = path.join(CONFIG_DIR, 'accounts.json');
+const PASSWORD_FILE = path.join(CONFIG_DIR, 'password.json');
 
 // 读取服务器存储的账号
 function loadServerAccounts() {
@@ -55,7 +58,12 @@ function loadServerAccounts() {
 // 保存账号到服务器
 function saveServerAccounts(accounts) {
   try {
-    // 如果 ACCOUNTS_FILE 是目录，先删除它
+    // 确保配置目录存在
+    if (!fs.existsSync(CONFIG_DIR)) {
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    }
+
+    // 如果目标路径是目录则删除以恢复为文件
     if (fs.existsSync(ACCOUNTS_FILE)) {
       const stats = fs.statSync(ACCOUNTS_FILE);
       if (!stats.isFile()) {
@@ -63,6 +71,7 @@ function saveServerAccounts(accounts) {
         fs.rmSync(ACCOUNTS_FILE, { recursive: true });
       }
     }
+
     fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2), 'utf8');
     return true;
   } catch (e) {
@@ -118,7 +127,12 @@ function isPasswordSavedToFile() {
 // 保存管理员密码
 function saveAdminPassword(password) {
   try {
-    // 如果 PASSWORD_FILE 是目录，先删除它
+    // 确保配置目录存在
+    if (!fs.existsSync(CONFIG_DIR)) {
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    }
+
+    // 如果目标路径是目录则删除以恢复为文件
     if (fs.existsSync(PASSWORD_FILE)) {
       const stats = fs.statSync(PASSWORD_FILE);
       if (!stats.isFile()) {
@@ -126,6 +140,7 @@ function saveAdminPassword(password) {
         fs.rmSync(PASSWORD_FILE, { recursive: true });
       }
     }
+
     fs.writeFileSync(PASSWORD_FILE, JSON.stringify({ password }, null, 2), 'utf8');
     return true;
   } catch (e) {
