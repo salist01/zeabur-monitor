@@ -1,0 +1,13 @@
+node_modules
+.git
+.github
+.env
+password.json
+accounts.json
+password.json.example
+package-lock.json
+npm-debug.log
+Dockerfile
+README.md
+public/bg.png
+public/favicon.png
