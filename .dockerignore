@@ -5,7 +5,6 @@ node_modules
 password.json
 accounts.json
 password.json.example
-package-lock.json
 npm-debug.log
 Dockerfile
 README.md
